@@ -1,6 +1,7 @@
 package pascal;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -136,7 +137,14 @@ public class ExprEvalVisitor extends PascalBaseVisitor<Value> {
 			throw new SemanticException("function " + fnName + "(" + argTypes + ") is not defined", ctx.getStart().getLine());
 		}
 		SymbolTable scope = new SymbolTable(this.scope);
-		scope.add(new Variable("x", Type.INTEGER, "7"));
+		Iterator<Value> argValIt = argVals.iterator();
+		for (Parameter param: fnSig.getParams()) {
+			if ( ! argValIt.hasNext()) {
+				throw new IllegalStateException("argVals should have " + ctx.argList().expr().size() + " elements, it has " + argVals.size() + " instead");
+			}
+			Value currArgVal = argValIt.next();
+			scope.add(new Variable(param.getName(), param.getType(), currArgVal.getValue()));
+		}
 		ExecutorVisitor functionExecutor = new ExecutorVisitor(types, functions, types.get(function.retType.getText()), scope);
 		functionExecutor.visit(function.block());
 		return functionExecutor.getRetVal();
