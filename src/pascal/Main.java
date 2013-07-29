@@ -38,7 +38,7 @@ public class Main {
 				FunctionSignature sig = new FunctionSignatureLoader(types).visitFunction(ctx);
 				functions.put(sig, ctx);
 			}
-			ExecutorVisitor executor = new ExecutorVisitor(types, functions);
+			ExecutorVisitor executor = new ExecutorVisitor(types, functions, null);
 			executor.visit(tree.decl());
 			executor.visit(tree.block());
 			SymbolTable globScope = executor.getGlobalScope();

@@ -111,6 +111,7 @@ public class ExprEvalVisitor extends PascalBaseVisitor<Value> {
 			argVals.add(val);
 		}
 		FunctionContext function = null;
+		FunctionSignature fnSig = null;
 		for (FunctionSignature sig: functions.keySet()) {
 			if ( ! fnName.equals(sig.getName())) {
 				continue;
@@ -127,6 +128,7 @@ public class ExprEvalVisitor extends PascalBaseVisitor<Value> {
 			}
 			if (typesMatched) {
 				function = functions.get(sig);
+				fnSig = sig;
 				break;
 			}
 		}
@@ -134,7 +136,10 @@ public class ExprEvalVisitor extends PascalBaseVisitor<Value> {
 			throw new SemanticException("function " + fnName + "(" + argTypes + ") is not defined", ctx.getStart().getLine());
 		}
 		SymbolTable scope = new SymbolTable(this.scope);
-		return super.visitCall(ctx);
+		scope.add(new Variable("x", Type.INTEGER, "7"));
+		ExecutorVisitor functionExecutor = new ExecutorVisitor(types, functions, types.get(function.retType.getText()), scope);
+		functionExecutor.visit(function.block());
+		return functionExecutor.getRetVal();
 	}
 
 	private Value createIntComparisonPredicate(int lval, String op, int rval) {

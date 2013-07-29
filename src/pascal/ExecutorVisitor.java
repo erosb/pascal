@@ -10,6 +10,7 @@ import pascal.parser.PascalParser.AssignContext;
 import pascal.parser.PascalParser.FunctionContext;
 import pascal.parser.PascalParser.IfStructContext;
 import pascal.parser.PascalParser.LoopStructContext;
+import pascal.parser.PascalParser.RetContext;
 import pascal.parser.PascalParser.StmtContext;
 import pascal.parser.PascalParser.VarDeclContext;
 import pascal.symbol.FunctionSignature;
@@ -18,9 +19,9 @@ import pascal.symbol.Variable;
 
 public class ExecutorVisitor extends PascalBaseVisitor<Void>{
 
-	private final SymbolTable globalScope = new SymbolTable(null);
+	private final SymbolTable globalScope;
 	
-	private SymbolTable currentScope = globalScope;
+	private SymbolTable currentScope;
 	
 	private final Map<String, Type> types;
 	
@@ -28,9 +29,16 @@ public class ExecutorVisitor extends PascalBaseVisitor<Void>{
 	
 	private final Type returnType;
 	
+	private Value retVal;
+	
 	public ExecutorVisitor(Map<String, Type> types,
-			Map<FunctionSignature, FunctionContext> functions) {
-		super();
+			Map<FunctionSignature, FunctionContext> functions, SymbolTable scope) {
+		this(types, functions, null, scope);
+	}
+	
+	public ExecutorVisitor(Map<String, Type> types,
+			Map<FunctionSignature, FunctionContext> functions,
+			Type returnType, SymbolTable scope) {
 		if (types == null) {
 			throw new IllegalArgumentException("types cannot be null");
 		}
@@ -39,7 +47,11 @@ public class ExecutorVisitor extends PascalBaseVisitor<Void>{
 		}
 		this.types = types;
 		this.functions = functions;
-		returnType = null;
+		this.returnType = returnType;
+		if (scope == null) {
+			scope = new SymbolTable(null);
+		}
+		this.currentScope = this.globalScope = scope;
 	}
 
 	@Override
@@ -88,7 +100,18 @@ public class ExecutorVisitor extends PascalBaseVisitor<Void>{
 		return null;
 	}
 	
-	
+	@Override
+	public Void visitRet(RetContext ctx) {
+		if (returnType == null && ctx.expr() != null) {
+			throw new SemanticException("cannot return value from void block", ctx.getStart().getLine());
+		}
+		Value retVal = createExprEvalVisitor().visit(ctx.expr());
+		if ( ! retVal.getType().equals(returnType)) {
+			throw new SemanticException("cannot return " + retVal.getType() + " instead of " + returnType, ctx.getStart().getLine());
+		}
+		this.retVal = retVal;
+		return null;
+	}
 
 	@Override
 	public Void visitLoopStruct(LoopStructContext ctx) {
@@ -111,11 +134,24 @@ public class ExecutorVisitor extends PascalBaseVisitor<Void>{
 		}
 		return null;
 	}
+	
+	
+	@Override
+	public Void visitStmt(StmtContext ctx) {
+		if (retVal != null) {
+			return null;
+		}
+		return super.visitStmt(ctx);
+	}
 
 	public SymbolTable getGlobalScope() {
 		return globalScope;
 	}
 	
+	public Value getRetVal() {
+		return retVal;
+	}
+
 	private ExprEvalVisitor createExprEvalVisitor() {
 		return new ExprEvalVisitor(currentScope, types, functions);
 	}
